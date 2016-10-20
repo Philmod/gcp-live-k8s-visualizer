@@ -140,6 +140,29 @@ var colors = [
 	'rgb(17,178,238)'
 ]
 
+var link = function(source, target, options) {
+  if (!options) {
+    options = {};
+  }
+  jsPlumb.connect(
+    {
+      source: source,
+      target: target,
+      endpoint: "Blank",
+      anchors:[[ 0.5, 1, 0, 1, -30, 0 ], "Top"],
+      connector: ["Bezier", { curviness:75 }],
+      paintStyle: {lineWidth: 2, strokeStyle: options.color},
+      overlays:[
+          [ "Arrow", { width:15, length:30, location: 0.3}],
+          [ "Arrow", { width:15, length:30, location: 0.6}],
+          [ "Arrow", { width:15, length:30, location: 1}],
+        ],
+    });
+}
+
+// List of uses that connect pod -> pod directly. Otherwise it's pod -> service.
+var podToPodUses = ['service-loadbalancer'];
+
 var connectUses = function() {
 	var colorIx = 0;
 	var keys = [];
@@ -154,28 +177,24 @@ var connectUses = function() {
 		colorIx++;
 		if (colorIx >= colors.length) { colorIx = 0;};
 		$.each(pods.items, function(i, pod) {
-        var podKey = pod.metadata.labels.name;
-        //  console.log('connect uses key: ' +key + ', ' + podKey);
+      var podKey = pod.metadata.labels.name;
+      //  console.log('connect uses key: ' +key + ', ' + podKey);
 			if (podKey == key) {
-				$.each(list, function(j, serviceId) {
-          // console.log('connect: ' + 'pod-' + pod.metadata.name + ' to service-' + serviceId);
-					jsPlumb.connect(
-  					{
-  						source: 'pod-' + pod.metadata.name,
-  						target: 'service-' + serviceId,
-  						endpoint: "Blank",
-  						//anchors:["Bottom", "Top"],
-              anchors:[[ 0.5, 1, 0, 1, -30, 0 ], "Top"],
-  						//connector: "Straight",
-              connector: ["Bezier", { curviness:75 }],
-  						paintStyle:{lineWidth:2,strokeStyle:color},
-  						overlays:[
-      						[ "Arrow", { width:15, length:30, location: 0.3}],
-      						[ "Arrow", { width:15, length:30, location: 0.6}],
-      						[ "Arrow", { width:15, length:30, location: 1}],
-      					],
-  					});
-				});
+        if (podToPodUses.indexOf(key) > -1) {
+          // connect pod to pod.
+          $.each(list, function(j, serviceId) {
+            $.each(pods.items, function(i, podTarget) {
+              if (podTarget.metadata.labels.name === serviceId) {
+                link('pod-' + pod.metadata.name, 'pod-' + podTarget.metadata.name, {color: color});
+              }
+            });
+          });
+        } else {
+          // connect pod to service.
+  				$.each(list, function(j, serviceId) {
+            link('pod-' + pod.metadata.name, 'service-' + serviceId, {color: color});
+  				});
+        }
 			}
 		});
 	});
