@@ -382,6 +382,9 @@ var loadData = function() {
 	return deferred;
 }
 
+var count_refresh = 0;
+var MAX_REFRESH = 100; // number of data refresh before refreshing the whole page.
+var DT_REFRESH = 250; // [ms]
 function refresh(instance) {
 	pods = [];
 	services = [];
@@ -404,8 +407,12 @@ function refresh(instance) {
     connectUses();
 
 		setTimeout(function() {
+      count_refresh++;
+      if (count_refresh === MAX_REFRESH) {
+        window.location.reload(false);
+      }
 			refresh(instance);
-		}, 250);
+		}, DT_REFRESH);
   });
 }
 
